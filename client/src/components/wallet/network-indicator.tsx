@@ -20,14 +20,14 @@ const NetworkIndicator: React.FC<NetworkIndicatorProps> = ({
   className = "",
   showSwitchButton = false,
 }) => {
-  const {
-    isConnected,
+  const { 
+    isConnected, 
     chainId,
     networkName,
     isNetworkSupported,
-    switchNetwork,
+    switchNetwork
   } = useWallet();
-
+  
   if (!isConnected) {
     return null;
   }
@@ -50,14 +50,14 @@ const NetworkIndicator: React.FC<NetworkIndicatorProps> = ({
           <TooltipTrigger asChild>
             <Badge variant={badgeVariant} className="flex items-center px-2 py-1">
               {badgeIcon}
-              {networkName}
+              {networkName || "Unknown Network"}
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
             <p>
               {isNetworkSupported
-                ? `Connected to ${networkName}`
-                : `Unsupported network: ${networkName}`}
+                ? `Connected to ${networkName || "Unknown Network"}`
+                : `Unsupported network: ${networkName || "Unknown Network"}`}
             </p>
           </TooltipContent>
         </Tooltip>
@@ -68,7 +68,7 @@ const NetworkIndicator: React.FC<NetworkIndicatorProps> = ({
           variant="ghost"
           size="sm"
           className="ml-2 text-xs"
-          onClick={() => switchNetwork(DEFAULT_NETWORK)}
+          onClick={() => switchNetwork && switchNetwork(DEFAULT_NETWORK)}
         >
           <ArrowRight className="h-3 w-3 mr-1" />
           Switch Network

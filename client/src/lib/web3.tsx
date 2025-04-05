@@ -1,22 +1,18 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { ethers } from "ethers";
 import { useToast } from "@/hooks/use-toast";
+import { DEFAULT_NETWORK } from "./networks";
+import { WalletType, detectWalletType, isWalletAvailable } from "./wallet-utils";
 import { 
-  DEFAULT_NETWORK, 
-  NETWORKS, 
-  isNetworkSupported, 
-  switchChain,
-  getNetworkName 
-} from "./networks";
-import {
-  WalletType,
-  WalletErrorType,
-  detectWalletType,
-  isWalletAvailable,
-  parseWalletError,
-  getWalletErrorMessage,
-  getWalletInstallUrl
-} from "./wallet-utils";
+  shortenAddress as shortenAddr, 
+  isNetworkSupported as checkNetworkSupported, 
+  getNetworkNameHelper, 
+  switchNetworkHelper, 
+  connectWalletHelper 
+} from "./web3-helper";
+
+// Re-export shortenAddress for backward compatibility
+export const shortenAddress = shortenAddr;
 
 interface WalletContextType {
   provider: ethers.BrowserProvider | null;
@@ -28,7 +24,7 @@ interface WalletContextType {
   isConnecting: boolean;
   walletType: WalletType;
   isNetworkSupported: boolean;
-  connectWallet: () => Promise<void>;
+  connectWallet: () => Promise<boolean>;
   disconnectWallet: () => void;
   switchNetwork: (chainId: number) => Promise<boolean>;
 }
@@ -43,7 +39,7 @@ const WalletContext = createContext<WalletContextType>({
   isConnecting: false,
   walletType: WalletType.UNKNOWN,
   isNetworkSupported: false,
-  connectWallet: async () => {},
+  connectWallet: async () => false,
   disconnectWallet: () => {},
   switchNetwork: async () => false,
 });
@@ -64,7 +60,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
   const [walletType, setWalletType] = useState<WalletType>(WalletType.UNKNOWN);
   
   const { toast } = useToast();
-
+  
   // Detect wallet type when component mounts
   useEffect(() => {
     if (isWalletAvailable()) {
@@ -73,98 +69,92 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
     }
   }, []);
 
+  // Connect wallet function
   const connectWallet = useCallback(async () => {
     // Prevent multiple connection attempts
     if (isConnecting) return;
+    setIsConnecting(true);
     
-    try {
-      // Check if wallet is available
-      if (!isWalletAvailable()) {
+    const success = await connectWalletHelper(
+      // onStartConnecting
+      () => {
         const detectedWalletType = detectWalletType();
-        const installUrl = getWalletInstallUrl(detectedWalletType);
+        setWalletType(detectedWalletType);
+      },
+      
+      // onProviderCreated
+      (newProvider) => {
+        setProvider(newProvider);
+      },
+      
+      // onAccountsReceived
+      (accounts, address) => {
+        setAccount(address);
+      },
+      
+      // onNetworkReceived
+      (networkId, networkSupported) => {
+        setChainId(networkId);
         
+        if (!networkSupported) {
+          toast({
+            title: "Unsupported Network",
+            description: `Please switch to ${getNetworkNameHelper(DEFAULT_NETWORK)} to use this application`,
+            variant: "destructive",
+          });
+          
+          // Attempt to switch network
+          switchNetworkHelper(
+            DEFAULT_NETWORK,
+            (newChainId) => {
+              toast({
+                title: "Network changed",
+                description: `Switched to ${getNetworkNameHelper(newChainId)}`,
+              });
+            },
+            (error) => {
+              console.error("Network switch failed:", error);
+              toast({
+                title: "Network switch failed",
+                description: "Failed to switch network. Please try manually in your wallet.",
+                variant: "destructive",
+              });
+            }
+          );
+        }
+      },
+      
+      // onSignerReceived
+      (newSigner) => {
+        setSigner(newSigner);
+        setIsConnected(true);
+        localStorage.setItem("isWalletConnected", "true");
+      },
+      
+      // onComplete
+      (address, networkId) => {
         toast({
-          title: "Wallet not detected",
-          description: (
-            <>
-              Please install a wallet like MetaMask to use this application. 
-              <a 
-                href={installUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline ml-1"
-              >
-                Install here
-              </a>
-            </>
-          ),
+          title: "Wallet connected",
+          description: `Connected to ${shortenAddress(address)} on ${getNetworkNameHelper(networkId)}`,
+        });
+      },
+      
+      // onError
+      (error, errorType, errorMessage) => {
+        console.error("Error connecting wallet:", error);
+        toast({
+          title: "Connection failed",
+          description: errorMessage,
           variant: "destructive",
         });
-        return;
       }
+    );
+    
+    setIsConnecting(false);
+    return success;
+  }, [toast, isConnecting]);
 
-      setIsConnecting(true);
-      
-      // Detect wallet type
-      const detectedWalletType = detectWalletType();
-      setWalletType(detectedWalletType);
-      
-      // Create provider
-      const browserProvider = new ethers.BrowserProvider(window.ethereum);
-      setProvider(browserProvider);
-      
-      // Request accounts
-      const accounts = await browserProvider.send("eth_requestAccounts", []);
-      const address = accounts[0];
-      setAccount(address);
-      
-      // Get network
-      const network = await browserProvider.getNetwork();
-      const networkId = Number(network.chainId);
-      setChainId(networkId);
-      
-      // Check if network is supported
-      if (!isNetworkSupported(networkId)) {
-        toast({
-          title: "Unsupported Network",
-          description: `Please switch to ${getNetworkName(DEFAULT_NETWORK)} to use this application`,
-          variant: "destructive",
-        });
-        
-        // Attempt to switch network
-        await switchNetwork(DEFAULT_NETWORK);
-      }
-      
-      // Get signer
-      const ethSigner = await browserProvider.getSigner();
-      setSigner(ethSigner);
-      
-      setIsConnected(true);
-      
-      // Save connection status
-      localStorage.setItem("isWalletConnected", "true");
-      
-      toast({
-        title: "Wallet connected",
-        description: `Connected to ${shortenAddress(address)} on ${getNetworkName(networkId)}`,
-      });
-    } catch (error) {
-      console.error("Error connecting wallet:", error);
-      
-      // Parse the error
-      const errorType = parseWalletError(error);
-      const errorMessage = getWalletErrorMessage(errorType, walletType);
-      
-      toast({
-        title: "Connection failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  }, [toast, isConnecting, walletType]);
-
+  // Disconnect wallet function
   const disconnectWallet = useCallback(() => {
     setProvider(null);
     setSigner(null);
@@ -181,31 +171,23 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
 
   // Switch network function
   const switchNetwork = useCallback(async (targetChainId: number): Promise<boolean> => {
-    if (!isWalletAvailable()) return false;
-    
-    try {
-      const success = await switchChain(targetChainId);
-      
-      if (success) {
-        // We don't need to manually update state as the chainChanged event will trigger
+    return switchNetworkHelper(
+      targetChainId,
+      (newChainId) => {
         toast({
           title: "Network changed",
-          description: `Switched to ${getNetworkName(targetChainId)}`,
+          description: `Switched to ${getNetworkNameHelper(newChainId)}`,
+        });
+      },
+      (error) => {
+        console.error("Error switching network:", error);
+        toast({
+          title: "Network switch failed",
+          description: "Failed to switch network. Please try manually in your wallet.",
+          variant: "destructive",
         });
       }
-      
-      return success;
-    } catch (error) {
-      console.error("Error switching network:", error);
-      
-      toast({
-        title: "Network switch failed",
-        description: "Failed to switch network. Please try manually in your wallet.",
-        variant: "destructive",
-      });
-      
-      return false;
-    }
+    );
   }, [toast]);
 
   // Auto-connect if previously connected
@@ -231,7 +213,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
 
   // Handle account and chain changes
   useEffect(() => {
-    if (isWalletAvailable()) {
+    if (isWalletAvailable() && window.ethereum) {
       const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
           disconnectWallet();
@@ -250,41 +232,50 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
           setChainId(newChainId);
           
           // Check if network is supported
-          if (!isNetworkSupported(newChainId)) {
+          if (!checkNetworkSupported(newChainId)) {
             toast({
               title: "Unsupported Network",
-              description: `You've switched to ${getNetworkName(newChainId)}. Some features may not work properly.`,
+              description: `You've switched to ${getNetworkNameHelper(newChainId)}. Some features may not work properly.`,
               variant: "destructive",
             });
           } else {
             toast({
               title: "Network changed",
-              description: `Switched to ${getNetworkName(newChainId)}`,
+              description: `Switched to ${getNetworkNameHelper(newChainId)}`,
             });
           }
         }
       };
 
-      window.ethereum.on("accountsChanged", handleAccountsChanged);
-      window.ethereum.on("chainChanged", handleChainChanged);
+      try {
+        window.ethereum.on("accountsChanged", handleAccountsChanged);
+        window.ethereum.on("chainChanged", handleChainChanged);
+      } catch (error) {
+        console.error("Error setting up wallet event listeners:", error);
+      }
 
       return () => {
-        if (window.ethereum.removeListener) {
-          window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
-          window.ethereum.removeListener("chainChanged", handleChainChanged);
+        try {
+          if (window.ethereum && window.ethereum.removeListener) {
+            window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+            window.ethereum.removeListener("chainChanged", handleChainChanged);
+          }
+        } catch (error) {
+          console.error("Error removing wallet event listeners:", error);
         }
       };
     }
+    return () => {}; // Return empty cleanup function if no wallet is available
   }, [disconnectWallet, isConnected, toast]);
 
   // Compute if current network is supported
-  const networkSupported = isNetworkSupported(chainId);
+  const networkSupported = checkNetworkSupported(chainId);
   
   // Get the network name
-  const currentNetworkName = getNetworkName(chainId);
+  const currentNetworkName = getNetworkNameHelper(chainId);
 
   // Creating context value separately to avoid JSX parsing issues
-  const contextValue = {
+  const contextValue: WalletContextType = {
     provider,
     signer,
     account,
@@ -294,7 +285,10 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
     isConnecting,
     walletType,
     isNetworkSupported: networkSupported,
-    connectWallet,
+    connectWallet: async () => {
+      const result = await connectWallet();
+      return result || false;
+    },
     disconnectWallet,
     switchNetwork,
   };
@@ -304,12 +298,6 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       {children}
     </WalletContext.Provider>
   );
-};
-
-// Helper function to shorten an Ethereum address
-export const shortenAddress = (address: string, chars = 4) => {
-  if (!address) return "";
-  return `${address.substring(0, chars + 2)}...${address.substring(address.length - chars)}`;
 };
 
 // Add global ethereum interface

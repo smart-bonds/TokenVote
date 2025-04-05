@@ -36,7 +36,12 @@ export function detectWalletType(): WalletType {
 
 // Function to check if any wallet is available
 export function isWalletAvailable(): boolean {
-  return window.ethereum !== undefined;
+  try {
+    return window.ethereum !== undefined && window.ethereum !== null;
+  } catch (error) {
+    console.error("Error checking wallet availability:", error);
+    return false;
+  }
 }
 
 // Helper function to get wallet installation URL
