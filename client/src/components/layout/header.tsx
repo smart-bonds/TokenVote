@@ -17,9 +17,9 @@ const Header: React.FC<HeaderProps> = ({ toggleTheme, theme }) => {
     <header className="sticky top-0 z-50 bg-background border-b border-border">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/">
-          <a className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 cursor-pointer">
             <Logo />
-          </a>
+          </div>
         </Link>
 
         <div className="flex items-center space-x-4">
@@ -65,15 +65,15 @@ interface NavLinkProps {
 const NavLink: React.FC<NavLinkProps> = ({ href, active, children }) => {
   return (
     <Link href={href}>
-      <a
-        className={`font-medium transition-colors ${
+      <div
+        className={`font-medium transition-colors cursor-pointer ${
           active
             ? "text-primary"
             : "text-foreground hover:text-primary"
         }`}
       >
         {children}
-      </a>
+      </div>
     </Link>
   );
 };
