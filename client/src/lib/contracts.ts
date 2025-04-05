@@ -61,8 +61,8 @@ export const GOVERNANCE_ABI = [
 ];
 
 // You'll need to replace these with your deployed contract addresses on the Celo Alfajores testnet
-export const TOKEN_FACTORY_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-export const GOVERNANCE_ADDRESS = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9";
+export const TOKEN_FACTORY_ADDRESS = "0x69f14a29f815af56c1efee18c92f266a77459c98";
+export const GOVERNANCE_ADDRESS = "0x42b91cFF3FD5429C7bD8610b945C9aA8a2F9FBDD";
 
 // Function to create a new ERC20 token using the Token Factory
 export const createToken = async (

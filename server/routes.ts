@@ -27,6 +27,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Handle both query param and URL param versions
+  app.get("/api/tokens/creator", async (req, res) => {
+    try {
+      // Get the address from query parameters
+      const address = req.query.address;
+      if (!address || typeof address !== 'string') {
+        return res.status(400).json({ message: "Address is required as a string parameter" });
+      }
+      console.log("Fetching tokens for creator:", address);
+      const tokens = await storage.getTokensByCreator(address);
+      res.json(tokens);
+    } catch (err) {
+      handleError(err, res);
+    }
+  });
+
   app.get("/api/tokens/creator/:address", async (req, res) => {
     try {
       const { address } = req.params;
