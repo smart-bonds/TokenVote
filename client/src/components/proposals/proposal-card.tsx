@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
+import ProposalDetailsModal from "./proposal-details-modal";
+import { getTokenBalance } from "@/lib/contracts";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -16,10 +18,11 @@ interface ProposalCardProps {
 }
 
 const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, hasVoted }) => {
-  const { account, signer } = useWallet();
+  const { account, signer, provider } = useWallet();
   const { toast } = useToast();
   const [isVoting, setIsVoting] = useState(false);
   const [localHasVoted, setLocalHasVoted] = useState(hasVoted);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   // Calculate vote percentages and total votes
   const votesFor = BigInt(proposal.votesFor);
@@ -63,7 +66,7 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, hasVoted }) => {
 
   const handleVote = async (direction: "for" | "against") => {
     try {
-      if (!account || !signer) {
+      if (!account || !signer || !provider) {
         toast({
           title: "Wallet not connected",
           description: "Please connect your wallet to vote",
@@ -83,8 +86,30 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, hasVoted }) => {
 
       setIsVoting(true);
 
-      // In a real implementation, we would sign a transaction to vote on-chain
-      // For this demo, we'll just call our API
+      // Check if the user has the voting token in their wallet
+      try {
+        const tokenBalance = await getTokenBalance(
+          provider,
+          proposal.tokenAddress,
+          account
+        );
+        
+        // If balance is zero or very small (less than 0.01 tokens)
+        if (BigInt(tokenBalance) < BigInt("10000000000000000")) {
+          toast({
+            title: "Insufficient token balance",
+            description: `You need to hold ${proposal.tokenSymbol} tokens to vote on this proposal`,
+            variant: "destructive",
+          });
+          setIsVoting(false);
+          return;
+        }
+      } catch (balanceError) {
+        console.error("Error checking token balance:", balanceError);
+        // Continue with voting attempt even if balance check fails
+      }
+
+      // Proceed with vote
       const voteAmount = "1000000000000000000"; // 1 token with 18 decimals
       
       await apiRequest("POST", "/api/votes", {
@@ -117,96 +142,108 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, hasVoted }) => {
   };
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-lg">
-      <CardContent className="p-6">
-        <div className="flex flex-wrap justify-between gap-4 mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant={isActive ? "secondary" : "outline"}>
-                {isActive ? "Active" : "Completed"}
+    <>
+      <Card className="overflow-hidden transition-all hover:shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex flex-wrap justify-between gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Badge variant={isActive ? "secondary" : "outline"}>
+                  {isActive ? "Active" : "Completed"}
+                </Badge>
+                <span className="text-sm text-muted-foreground">{statusText}</span>
+              </div>
+              <h3 className="text-xl font-bold font-heading">{proposal.title}</h3>
+              <div className="text-sm text-muted-foreground mt-1">
+                By <span className="text-primary">{shortenAddress(proposal.creatorAddress)}</span> · 
+                Using <span className="font-medium">{proposal.tokenSymbol}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end">
+              <div className="text-sm text-muted-foreground mb-1">Quorum: {proposal.quorum}%</div>
+              <div className="w-32 h-2 rounded-full overflow-hidden">
+                <Progress value={quorumProgress} className="h-full" />
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6 text-foreground">
+            <p>{proposal.description}</p>
+          </div>
+
+          <div className="space-y-3 mb-6">
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-sm font-medium">For</span>
+                <span className="text-sm font-medium">{votesForPercentage}% ({formatVotes(proposal.votesFor)})</span>
+              </div>
+              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full"
+                  style={{ width: `${votesForPercentage}%` }}
+                ></div>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-sm font-medium">Against</span>
+                <span className="text-sm font-medium">{votesAgainstPercentage}% ({formatVotes(proposal.votesAgainst)})</span>
+              </div>
+              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-destructive rounded-full"
+                  style={{ width: `${votesAgainstPercentage}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {isActive && !localHasVoted && (
+              <>
+                <Button
+                  onClick={() => handleVote("for")}
+                  disabled={isVoting}
+                >
+                  {isVoting ? "Voting..." : "Vote For"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleVote("against")}
+                  disabled={isVoting}
+                  className="text-foreground"
+                >
+                  Vote Against
+                </Button>
+              </>
+            )}
+            {localHasVoted && (
+              <Badge variant="outline" className="mr-auto">
+                You voted on this proposal
               </Badge>
-              <span className="text-sm text-muted-foreground">{statusText}</span>
-            </div>
-            <h3 className="text-xl font-bold font-heading">{proposal.title}</h3>
-            <div className="text-sm text-muted-foreground mt-1">
-              By <span className="text-primary">{shortenAddress(proposal.creatorAddress)}</span> · 
-              Using <span className="font-medium">{proposal.tokenSymbol}</span>
-            </div>
+            )}
+            <Button
+              variant="outline"
+              className="ml-auto text-foreground"
+              onClick={() => setIsDetailsModalOpen(true)}
+            >
+              View Details
+            </Button>
           </div>
-
-          <div className="flex flex-col items-end">
-            <div className="text-sm text-muted-foreground mb-1">Quorum: {proposal.quorum}%</div>
-            <div className="w-32 h-2 rounded-full overflow-hidden">
-              <Progress value={quorumProgress} className="h-full" />
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-6 text-foreground">
-          <p>{proposal.description}</p>
-        </div>
-
-        <div className="space-y-3 mb-6">
-          <div>
-            <div className="flex justify-between mb-1">
-              <span className="text-sm font-medium">For</span>
-              <span className="text-sm font-medium">{votesForPercentage}% ({formatVotes(proposal.votesFor)})</span>
-            </div>
-            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full"
-                style={{ width: `${votesForPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex justify-between mb-1">
-              <span className="text-sm font-medium">Against</span>
-              <span className="text-sm font-medium">{votesAgainstPercentage}% ({formatVotes(proposal.votesAgainst)})</span>
-            </div>
-            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-destructive rounded-full"
-                style={{ width: `${votesAgainstPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          {isActive && !localHasVoted && (
-            <>
-              <Button
-                onClick={() => handleVote("for")}
-                disabled={isVoting}
-              >
-                {isVoting ? "Voting..." : "Vote For"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleVote("against")}
-                disabled={isVoting}
-                className="text-foreground"
-              >
-                Vote Against
-              </Button>
-            </>
-          )}
-          {localHasVoted && (
-            <Badge variant="outline" className="mr-auto">
-              You voted on this proposal
-            </Badge>
-          )}
-          <Button
-            variant="outline"
-            className="ml-auto text-foreground"
-          >
-            View Details
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      
+      <ProposalDetailsModal
+        proposal={proposal}
+        open={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        hasVoted={localHasVoted}
+        onVote={handleVote}
+        isVoting={isVoting}
+      />
+    </>
   );
 };
 

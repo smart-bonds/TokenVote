@@ -164,7 +164,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User has already voted on this proposal" });
       }
       
+      // Get the proposal to check the token address
+      const proposal = await storage.getProposalById(voteData.proposalId);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      
+      // In a real implementation, we would verify the token balance on-chain
+      // For this demo, we'll just create the vote without verification
+      // as the frontend already does the token balance check
+      
       const vote = await storage.createVote(voteData);
+      
+      // Update the proposal's vote counts
+      const votesFor = voteData.voteDirection === "for"
+        ? (BigInt(proposal.votesFor) + BigInt(voteData.voteAmount)).toString()
+        : proposal.votesFor;
+        
+      const votesAgainst = voteData.voteDirection === "against"
+        ? (BigInt(proposal.votesAgainst) + BigInt(voteData.voteAmount)).toString()
+        : proposal.votesAgainst;
+      
+      await storage.updateProposalVotes(proposal.id, votesFor, votesAgainst);
+      
       res.status(201).json(vote);
     } catch (err) {
       handleError(err, res);
