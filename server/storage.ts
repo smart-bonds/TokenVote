@@ -4,6 +4,8 @@ import {
   proposals, type Proposal, type InsertProposal,
   votes, type Vote, type InsertVote
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, lt, gt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -36,173 +38,177 @@ export interface IStorage {
   hasVoted(proposalId: number, voterAddress: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private tokens: Map<number, Token>;
-  private proposals: Map<number, Proposal>;
-  private votes: Map<number, Vote>;
-  
-  private userId: number;
-  private tokenId: number;
-  private proposalId: number;
-  private voteId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.tokens = new Map();
-    this.proposals = new Map();
-    this.votes = new Map();
-    
-    this.userId = 1;
-    this.tokenId = 1;
-    this.proposalId = 1;
-    this.voteId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByWalletAddress(walletAddress: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.walletAddress.toLowerCase() === walletAddress.toLowerCase(),
-    );
+    const lowerCaseWalletAddress = walletAddress.toLowerCase();
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(db.sql`LOWER(${users.walletAddress})`, lowerCaseWalletAddress));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   // Token operations
   async getTokenById(id: number): Promise<Token | undefined> {
-    return this.tokens.get(id);
+    const [token] = await db.select().from(tokens).where(eq(tokens.id, id));
+    return token;
   }
 
   async getTokenByAddress(contractAddress: string): Promise<Token | undefined> {
-    return Array.from(this.tokens.values()).find(
-      (token) => token.contractAddress.toLowerCase() === contractAddress.toLowerCase(),
-    );
+    const lowerCaseContractAddress = contractAddress.toLowerCase();
+    const [token] = await db
+      .select()
+      .from(tokens)
+      .where(eq(db.sql`LOWER(${tokens.contractAddress})`, lowerCaseContractAddress));
+    return token;
   }
 
   async getTokensByCreator(creatorAddress: string): Promise<Token[]> {
-    return Array.from(this.tokens.values()).filter(
-      (token) => token.creatorAddress.toLowerCase() === creatorAddress.toLowerCase(),
-    );
+    const lowerCaseCreatorAddress = creatorAddress.toLowerCase();
+    return await db
+      .select()
+      .from(tokens)
+      .where(eq(db.sql`LOWER(${tokens.creatorAddress})`, lowerCaseCreatorAddress));
   }
 
   async getAllTokens(): Promise<Token[]> {
-    return Array.from(this.tokens.values());
+    return await db.select().from(tokens);
   }
 
   async createToken(insertToken: InsertToken): Promise<Token> {
-    const id = this.tokenId++;
-    const now = new Date();
-    const token: Token = { ...insertToken, id, createdAt: now };
-    this.tokens.set(id, token);
+    const [token] = await db
+      .insert(tokens)
+      .values(insertToken)
+      .returning();
     return token;
   }
 
   // Proposal operations
   async getProposalById(id: number): Promise<Proposal | undefined> {
-    return this.proposals.get(id);
+    const [proposal] = await db.select().from(proposals).where(eq(proposals.id, id));
+    return proposal;
   }
 
   async getProposalsByToken(tokenAddress: string): Promise<Proposal[]> {
-    return Array.from(this.proposals.values()).filter(
-      (proposal) => proposal.tokenAddress.toLowerCase() === tokenAddress.toLowerCase(),
-    );
+    const lowerCaseTokenAddress = tokenAddress.toLowerCase();
+    return await db
+      .select()
+      .from(proposals)
+      .where(eq(db.sql`LOWER(${proposals.tokenAddress})`, lowerCaseTokenAddress));
   }
 
   async getProposalsByCreator(creatorAddress: string): Promise<Proposal[]> {
-    return Array.from(this.proposals.values()).filter(
-      (proposal) => proposal.creatorAddress.toLowerCase() === creatorAddress.toLowerCase(),
-    );
+    const lowerCaseCreatorAddress = creatorAddress.toLowerCase();
+    return await db
+      .select()
+      .from(proposals)
+      .where(eq(db.sql`LOWER(${proposals.creatorAddress})`, lowerCaseCreatorAddress));
   }
 
   async getAllProposals(): Promise<Proposal[]> {
-    return Array.from(this.proposals.values());
+    return await db.select().from(proposals);
   }
 
   async getActiveProposals(): Promise<Proposal[]> {
     const now = new Date();
-    return Array.from(this.proposals.values()).filter(
-      (proposal) => proposal.status === "active" && proposal.endDate > now,
-    );
+    return await db
+      .select()
+      .from(proposals)
+      .where(
+        and(
+          eq(proposals.status, "active"),
+          gt(proposals.endDate, now)
+        )
+      );
   }
 
   async createProposal(insertProposal: InsertProposal): Promise<Proposal> {
-    const id = this.proposalId++;
-    const now = new Date();
-    const proposal: Proposal = { 
-      ...insertProposal,
-      id, 
-      votesFor: "0",
-      votesAgainst: "0",
-      status: "active",
-      createdAt: now 
-    };
-    this.proposals.set(id, proposal);
+    const [proposal] = await db
+      .insert(proposals)
+      .values({
+        ...insertProposal,
+        votesFor: "0",
+        votesAgainst: "0",
+        status: "active"
+      })
+      .returning();
     return proposal;
   }
 
   async updateProposalVotes(id: number, votesFor: string, votesAgainst: string): Promise<Proposal> {
-    const proposal = this.proposals.get(id);
-    if (!proposal) {
+    const [updatedProposal] = await db
+      .update(proposals)
+      .set({
+        votesFor,
+        votesAgainst
+      })
+      .where(eq(proposals.id, id))
+      .returning();
+
+    if (!updatedProposal) {
       throw new Error(`Proposal with id ${id} not found`);
     }
-    
-    const updatedProposal: Proposal = {
-      ...proposal,
-      votesFor,
-      votesAgainst,
-    };
-    
-    this.proposals.set(id, updatedProposal);
+
     return updatedProposal;
   }
 
   async closeProposal(id: number): Promise<Proposal> {
-    const proposal = this.proposals.get(id);
-    if (!proposal) {
+    const [updatedProposal] = await db
+      .update(proposals)
+      .set({
+        status: "completed"
+      })
+      .where(eq(proposals.id, id))
+      .returning();
+
+    if (!updatedProposal) {
       throw new Error(`Proposal with id ${id} not found`);
     }
-    
-    const updatedProposal: Proposal = {
-      ...proposal,
-      status: "completed",
-    };
-    
-    this.proposals.set(id, updatedProposal);
+
     return updatedProposal;
   }
 
   // Vote operations
   async getVoteById(id: number): Promise<Vote | undefined> {
-    return this.votes.get(id);
+    const [vote] = await db.select().from(votes).where(eq(votes.id, id));
+    return vote;
   }
 
   async getVotesByProposal(proposalId: number): Promise<Vote[]> {
-    return Array.from(this.votes.values()).filter(
-      (vote) => vote.proposalId === proposalId,
-    );
+    return await db
+      .select()
+      .from(votes)
+      .where(eq(votes.proposalId, proposalId));
   }
 
   async getVotesByVoter(voterAddress: string): Promise<Vote[]> {
-    return Array.from(this.votes.values()).filter(
-      (vote) => vote.voterAddress.toLowerCase() === voterAddress.toLowerCase(),
-    );
+    const lowerCaseVoterAddress = voterAddress.toLowerCase();
+    return await db
+      .select()
+      .from(votes)
+      .where(eq(db.sql`LOWER(${votes.voterAddress})`, lowerCaseVoterAddress));
   }
 
   async createVote(insertVote: InsertVote): Promise<Vote> {
-    const id = this.voteId++;
-    const now = new Date();
-    const vote: Vote = { ...insertVote, id, timestamp: now };
-    this.votes.set(id, vote);
-    
+    const [vote] = await db
+      .insert(votes)
+      .values(insertVote)
+      .returning();
+
     // Update proposal votes
     const proposal = await this.getProposalById(insertVote.proposalId);
     if (proposal) {
@@ -223,9 +229,18 @@ export class MemStorage implements IStorage {
   }
 
   async hasVoted(proposalId: number, voterAddress: string): Promise<boolean> {
-    const votes = await this.getVotesByProposal(proposalId);
-    return votes.some(vote => vote.voterAddress.toLowerCase() === voterAddress.toLowerCase());
+    const lowerCaseVoterAddress = voterAddress.toLowerCase();
+    const [vote] = await db
+      .select()
+      .from(votes)
+      .where(
+        and(
+          eq(votes.proposalId, proposalId),
+          eq(db.sql`LOWER(${votes.voterAddress})`, lowerCaseVoterAddress)
+        )
+      );
+    return !!vote;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
