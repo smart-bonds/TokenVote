@@ -181,6 +181,12 @@ export const getTokenBalance = async (
       throw new Error("No provider available");
     }
     
+    // Validate token address
+    if (!tokenAddress || !ethers.isAddress(tokenAddress)) {
+      console.warn(`Invalid token address: ${tokenAddress}`);
+      return "0";
+    }
+    
     // Connect to token contract
     const tokenContract = new ethers.Contract(
       tokenAddress,
@@ -188,13 +194,23 @@ export const getTokenBalance = async (
       provider
     );
     
-    // Get token balance
-    const balance = await tokenContract.balanceOf(walletAddress);
-    
-    return balance.toString();
+    try {
+      // Get token balance with timeout to prevent long hangs
+      const balance = await Promise.race([
+        tokenContract.balanceOf(walletAddress),
+        new Promise<string>((_, reject) => 
+          setTimeout(() => reject(new Error("Token balance request timed out")), 5000)
+        )
+      ]);
+      
+      return balance.toString();
+    } catch (innerError) {
+      console.warn(`Error fetching balance for token ${tokenAddress}:`, innerError);
+      return "0"; // Return 0 as fallback
+    }
   } catch (error) {
     console.error("Error getting token balance:", error);
-    throw error;
+    return "0"; // Return 0 instead of throwing to improve UI resilience
   }
 };
 

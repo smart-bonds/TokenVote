@@ -58,13 +58,23 @@ export const insertTokenSchema = createInsertSchema(tokens).omit({
   createdAt: true,
 });
 
-export const insertProposalSchema = createInsertSchema(proposals).omit({
-  id: true,
-  votesFor: true,
-  votesAgainst: true,
-  status: true,
-  createdAt: true,
-});
+export const insertProposalSchema = createInsertSchema(proposals)
+  .omit({
+    id: true,
+    votesFor: true,
+    votesAgainst: true,
+    status: true,
+    createdAt: true,
+  })
+  .extend({
+    // Ensure dates can be parsed from string format
+    startDate: z.string().or(z.date()).transform((val) => 
+      typeof val === 'string' ? new Date(val) : val
+    ),
+    endDate: z.string().or(z.date()).transform((val) => 
+      typeof val === 'string' ? new Date(val) : val
+    ),
+  });
 
 export const insertVoteSchema = createInsertSchema(votes).omit({
   id: true,

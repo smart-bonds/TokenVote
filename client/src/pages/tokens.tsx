@@ -30,8 +30,21 @@ const Tokens: React.FC = () => {
       
       try {
         for (const token of tokens) {
-          const balance = await getTokenBalance(provider, token.contractAddress, account);
-          balances[token.contractAddress] = balance;
+          try {
+            // Validate contract address
+            if (!token.contractAddress || token.contractAddress.trim() === '') {
+              console.warn(`Token ${token.id} has invalid contract address: ${token.contractAddress}`);
+              balances[token.contractAddress] = "0";
+              continue;
+            }
+            
+            console.log(`Loading balance for token ${token.symbol} (${token.contractAddress})`);
+            const balance = await getTokenBalance(provider, token.contractAddress, account);
+            balances[token.contractAddress] = balance;
+          } catch (tokenError) {
+            console.warn(`Error loading balance for token ${token.symbol}:`, tokenError);
+            balances[token.contractAddress] = "0";
+          }
         }
         setTokenBalances(balances);
       } catch (error) {
