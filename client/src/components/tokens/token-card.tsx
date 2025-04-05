@@ -54,8 +54,7 @@ const TokenCard: React.FC<TokenCardProps> = ({ token, balance, holders: propHold
   };
 
   const formattedTotalSupply = formatNumber(token.totalSupply);
-  // Apply the division by 10^18 directly here rather than in formatNumber to avoid double division
-  const formattedBalance = new Intl.NumberFormat().format(Number(balance) / Math.pow(10, 18));
+  const formattedBalance = formatNumber(balance);
 
   // Get the first letter of each word for the token symbol display
   const symbolInitials = token.name
