@@ -46,11 +46,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByWalletAddress(walletAddress: string): Promise<User | undefined> {
-    const lowerCaseWalletAddress = walletAddress.toLowerCase();
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(db.sql`LOWER(${users.walletAddress})`, lowerCaseWalletAddress));
+    // This is a simplification - in a production environment, we would need to handle case insensitivity more robustly
+    const allUsers = await db.select().from(users);
+    const user = allUsers.find(user => user.walletAddress.toLowerCase() === walletAddress.toLowerCase());
     return user;
   }
 
@@ -69,20 +67,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTokenByAddress(contractAddress: string): Promise<Token | undefined> {
-    const lowerCaseContractAddress = contractAddress.toLowerCase();
-    const [token] = await db
-      .select()
-      .from(tokens)
-      .where(eq(db.sql`LOWER(${tokens.contractAddress})`, lowerCaseContractAddress));
+    const allTokens = await db.select().from(tokens);
+    const token = allTokens.find(token => token.contractAddress.toLowerCase() === contractAddress.toLowerCase());
     return token;
   }
 
   async getTokensByCreator(creatorAddress: string): Promise<Token[]> {
-    const lowerCaseCreatorAddress = creatorAddress.toLowerCase();
-    return await db
-      .select()
-      .from(tokens)
-      .where(eq(db.sql`LOWER(${tokens.creatorAddress})`, lowerCaseCreatorAddress));
+    const allTokens = await db.select().from(tokens);
+    return allTokens.filter(token => token.creatorAddress.toLowerCase() === creatorAddress.toLowerCase());
   }
 
   async getAllTokens(): Promise<Token[]> {
@@ -104,19 +96,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProposalsByToken(tokenAddress: string): Promise<Proposal[]> {
-    const lowerCaseTokenAddress = tokenAddress.toLowerCase();
-    return await db
-      .select()
-      .from(proposals)
-      .where(eq(db.sql`LOWER(${proposals.tokenAddress})`, lowerCaseTokenAddress));
+    const allProposals = await db.select().from(proposals);
+    return allProposals.filter(proposal => proposal.tokenAddress.toLowerCase() === tokenAddress.toLowerCase());
   }
 
   async getProposalsByCreator(creatorAddress: string): Promise<Proposal[]> {
-    const lowerCaseCreatorAddress = creatorAddress.toLowerCase();
-    return await db
-      .select()
-      .from(proposals)
-      .where(eq(db.sql`LOWER(${proposals.creatorAddress})`, lowerCaseCreatorAddress));
+    const allProposals = await db.select().from(proposals);
+    return allProposals.filter(proposal => proposal.creatorAddress.toLowerCase() === creatorAddress.toLowerCase());
   }
 
   async getAllProposals(): Promise<Proposal[]> {
@@ -196,11 +182,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getVotesByVoter(voterAddress: string): Promise<Vote[]> {
-    const lowerCaseVoterAddress = voterAddress.toLowerCase();
-    return await db
-      .select()
-      .from(votes)
-      .where(eq(db.sql`LOWER(${votes.voterAddress})`, lowerCaseVoterAddress));
+    const allVotes = await db.select().from(votes);
+    return allVotes.filter(vote => vote.voterAddress.toLowerCase() === voterAddress.toLowerCase());
   }
 
   async createVote(insertVote: InsertVote): Promise<Vote> {
@@ -229,16 +212,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async hasVoted(proposalId: number, voterAddress: string): Promise<boolean> {
-    const lowerCaseVoterAddress = voterAddress.toLowerCase();
-    const [vote] = await db
-      .select()
-      .from(votes)
-      .where(
-        and(
-          eq(votes.proposalId, proposalId),
-          eq(db.sql`LOWER(${votes.voterAddress})`, lowerCaseVoterAddress)
-        )
-      );
+    const allVotes = await db.select().from(votes);
+    const vote = allVotes.find(vote => 
+      vote.proposalId === proposalId && 
+      vote.voterAddress.toLowerCase() === voterAddress.toLowerCase()
+    );
     return !!vote;
   }
 }
