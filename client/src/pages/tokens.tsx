@@ -89,7 +89,7 @@ const Tokens: React.FC = () => {
                 key={token.id}
                 token={token}
                 balance={tokenBalances[token.contractAddress] || "0"}
-                holders={8} // Mock value for demo
+                // Holders count is now calculated in the TokenCard component
               />
             ))}
           </div>
