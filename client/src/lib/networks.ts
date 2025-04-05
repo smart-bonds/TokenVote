@@ -14,19 +14,6 @@ export interface NetworkConfig {
 }
 
 export const NETWORKS: { [key: number]: NetworkConfig } = {
-  // Ethereum Mainnet
-  1: {
-    chainId: 1,
-    name: "Ethereum Mainnet",
-    currency: {
-      name: "Ether",
-      symbol: "ETH",
-      decimals: 18,
-    },
-    rpcUrl: "https://mainnet.infura.io/v3/",
-    blockExplorer: "https://etherscan.io",
-    isTestnet: false,
-  },
   // Sepolia Testnet (Ethereum Testnet)
   11155111: {
     chainId: 11155111,
@@ -36,26 +23,26 @@ export const NETWORKS: { [key: number]: NetworkConfig } = {
       symbol: "ETH",
       decimals: 18,
     },
-    rpcUrl: "https://sepolia.infura.io/v3/",
+    rpcUrl: "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
     blockExplorer: "https://sepolia.etherscan.io",
     isTestnet: true,
   },
-  // Hardhat Local Network
-  31337: {
-    chainId: 31337,
-    name: "Hardhat Local",
+  // Celo Alfajores Testnet
+  44787: {
+    chainId: 44787,
+    name: "Celo Alfajores Testnet",
     currency: {
-      name: "Ether",
-      symbol: "ETH",
+      name: "Alfajores Celo",
+      symbol: "CELO",
       decimals: 18,
     },
-    rpcUrl: "http://127.0.0.1:8545",
-    blockExplorer: "",
+    rpcUrl: "https://alfajores-forno.celo-testnet.org",
+    blockExplorer: "https://alfajores.celoscan.io",
     isTestnet: true,
   },
 };
 
-// For this application, we'll primarily use Sepolia testnet and local Hardhat network
+// For this application, we'll use Sepolia and Celo Alfajores testnets
 export const DEFAULT_NETWORK = 11155111; // Sepolia
 
 // Network switching functions

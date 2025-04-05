@@ -20,15 +20,9 @@ const NetworkIndicator: React.FC<NetworkIndicatorProps> = ({
   className = "",
   showSwitchButton = false,
 }) => {
-  const { 
-    isConnected, 
-    chainId,
-    networkName,
-    isNetworkSupported,
-    switchNetwork
-  } = useWallet();
+  const wallet = useWallet();
   
-  if (!isConnected) {
+  if (!wallet.isConnected) {
     return null;
   }
 
@@ -36,12 +30,14 @@ const NetworkIndicator: React.FC<NetworkIndicatorProps> = ({
   let badgeVariant: "outline" | "secondary" | "destructive" = "outline";
   let badgeIcon = <CheckCircle2 className="h-4 w-4 mr-1" />;
   
-  if (!isNetworkSupported) {
+  if (!wallet.isNetworkSupported) {
     badgeVariant = "destructive";
     badgeIcon = <AlertTriangle className="h-4 w-4 mr-1" />;
-  } else if (isTestnet(chainId)) {
+  } else if (isTestnet(wallet.chainId)) {
     badgeVariant = "secondary";
   }
+
+  const displayName = wallet.networkName || "Unknown Network";
 
   return (
     <div className={`flex items-center ${className}`}>
@@ -50,25 +46,25 @@ const NetworkIndicator: React.FC<NetworkIndicatorProps> = ({
           <TooltipTrigger asChild>
             <Badge variant={badgeVariant} className="flex items-center px-2 py-1">
               {badgeIcon}
-              {networkName || "Unknown Network"}
+              {displayName}
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
             <p>
-              {isNetworkSupported
-                ? `Connected to ${networkName || "Unknown Network"}`
-                : `Unsupported network: ${networkName || "Unknown Network"}`}
+              {wallet.isNetworkSupported
+                ? `Connected to ${displayName}`
+                : `Unsupported network: ${displayName}`}
             </p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
-      {showSwitchButton && !isNetworkSupported && (
+      {showSwitchButton && !wallet.isNetworkSupported && (
         <Button
           variant="ghost"
           size="sm"
           className="ml-2 text-xs"
-          onClick={() => switchNetwork && switchNetwork(DEFAULT_NETWORK)}
+          onClick={() => wallet.switchNetwork(DEFAULT_NETWORK)}
         >
           <ArrowRight className="h-3 w-3 mr-1" />
           Switch Network
