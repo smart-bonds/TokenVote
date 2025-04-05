@@ -31,14 +31,15 @@ const TokenDetailsModal: React.FC<TokenDetailsModalProps> = ({
 }) => {
   const { toast } = useToast();
 
-  // Format large numbers with commas
+  // Format large numbers with commas, properly accounting for 18 decimals
   const formatNumber = (value: string) => {
     try {
-      return new Intl.NumberFormat().format(
-        Number(ethers.formatUnits(value, token.decimals))
-      );
+      // Make sure to explicitly divide by 10^18 for token balances
+      const valueInEther = ethers.formatUnits(value || "0", 18);
+      return new Intl.NumberFormat().format(Number(valueInEther));
     } catch (error) {
-      return value;
+      console.warn("Error formatting number:", error);
+      return "0";
     }
   };
 

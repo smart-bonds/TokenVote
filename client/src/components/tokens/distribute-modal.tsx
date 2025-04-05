@@ -49,8 +49,8 @@ const DistributeModal: React.FC<DistributeModalProps> = ({ token, balance, onClo
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Format balance for display
-  const formattedBalance = ethers.formatUnits(balance, token.decimals);
+  // Format balance for display, ensuring we use 18 decimals
+  const formattedBalance = ethers.formatUnits(balance || "0", 18);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -77,8 +77,8 @@ const DistributeModal: React.FC<DistributeModalProps> = ({ token, balance, onClo
 
       setIsSubmitting(true);
 
-      // Convert amount to wei/tokens with correct decimals
-      const parsedAmount = ethers.parseUnits(values.tokenAmount, token.decimals).toString();
+      // Convert amount to wei/tokens with explicit 18 decimals
+      const parsedAmount = ethers.parseUnits(values.tokenAmount, 18).toString();
 
       // Check if amount is less than or equal to balance
       if (BigInt(parsedAmount) > BigInt(balance)) {
