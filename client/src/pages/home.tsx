@@ -20,18 +20,14 @@ const Home: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
           <Link href="/create-token">
-            <a>
-              <Button size="lg" className="font-heading">
-                Create a Token
-              </Button>
-            </a>
+            <Button size="lg" className="font-heading">
+              Create a Token
+            </Button>
           </Link>
           <Link href="/proposals">
-            <a>
-              <Button variant="outline" size="lg" className="font-heading text-foreground">
-                Browse Proposals
-              </Button>
-            </a>
+            <Button variant="outline" size="lg" className="font-heading text-foreground">
+              Browse Proposals
+            </Button>
           </Link>
         </div>
 

@@ -50,10 +50,12 @@ const Tokens: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold font-heading">My Tokens</h2>
           <Link href="/create-token">
-            <Button variant="link" className="text-primary flex items-center">
-              <Plus className="w-5 h-5 mr-1" />
-              Create New Token
-            </Button>
+            <span className="inline-block">
+              <Button variant="link" className="text-primary flex items-center">
+                <Plus className="w-5 h-5 mr-1" />
+                Create New Token
+              </Button>
+            </span>
           </Link>
         </div>
 
@@ -86,7 +88,9 @@ const Tokens: React.FC = () => {
               You haven't created any tokens yet
             </p>
             <Link href="/create-token">
-              <Button>Create Your First Token</Button>
+              <span className="inline-block">
+                <Button>Create Your First Token</Button>
+              </span>
             </Link>
           </div>
         )}

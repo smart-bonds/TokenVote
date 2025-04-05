@@ -78,9 +78,11 @@ const TokenCard: React.FC<TokenCardProps> = ({ token, balance, holders }) => {
             >
               Distribute
             </Button>
-            <Button variant="outline" className="text-foreground">
-              Details
-            </Button>
+            <span className="flex-1">
+              <Button variant="outline" className="w-full text-foreground">
+                Details
+              </Button>
+            </span>
           </div>
         </CardContent>
       </Card>
