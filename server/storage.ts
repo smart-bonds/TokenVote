@@ -5,7 +5,7 @@ import {
   votes, type Vote, type InsertVote
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, lt, gt, sql } from "drizzle-orm";
+import { eq, and, lt, gt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -50,7 +50,7 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(sql`LOWER(${users.walletAddress})`, lowerCaseWalletAddress));
+      .where(eq(db.sql`LOWER(${users.walletAddress})`, lowerCaseWalletAddress));
     return user;
   }
 
@@ -73,7 +73,7 @@ export class DatabaseStorage implements IStorage {
     const [token] = await db
       .select()
       .from(tokens)
-      .where(eq(sql`LOWER(${tokens.contractAddress})`, lowerCaseContractAddress));
+      .where(eq(db.sql`LOWER(${tokens.contractAddress})`, lowerCaseContractAddress));
     return token;
   }
 
@@ -82,7 +82,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(tokens)
-      .where(eq(sql`LOWER(${tokens.creatorAddress})`, lowerCaseCreatorAddress));
+      .where(eq(db.sql`LOWER(${tokens.creatorAddress})`, lowerCaseCreatorAddress));
   }
 
   async getAllTokens(): Promise<Token[]> {
@@ -108,7 +108,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(proposals)
-      .where(eq(sql`LOWER(${proposals.tokenAddress})`, lowerCaseTokenAddress));
+      .where(eq(db.sql`LOWER(${proposals.tokenAddress})`, lowerCaseTokenAddress));
   }
 
   async getProposalsByCreator(creatorAddress: string): Promise<Proposal[]> {
@@ -116,7 +116,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(proposals)
-      .where(eq(sql`LOWER(${proposals.creatorAddress})`, lowerCaseCreatorAddress));
+      .where(eq(db.sql`LOWER(${proposals.creatorAddress})`, lowerCaseCreatorAddress));
   }
 
   async getAllProposals(): Promise<Proposal[]> {
@@ -200,7 +200,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(votes)
-      .where(eq(sql`LOWER(${votes.voterAddress})`, lowerCaseVoterAddress));
+      .where(eq(db.sql`LOWER(${votes.voterAddress})`, lowerCaseVoterAddress));
   }
 
   async createVote(insertVote: InsertVote): Promise<Vote> {
@@ -236,7 +236,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(votes.proposalId, proposalId),
-          eq(sql`LOWER(${votes.voterAddress})`, lowerCaseVoterAddress)
+          eq(db.sql`LOWER(${votes.voterAddress})`, lowerCaseVoterAddress)
         )
       );
     return !!vote;

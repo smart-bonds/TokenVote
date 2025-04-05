@@ -198,14 +198,12 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, hasVoted }) => {
               You voted on this proposal
             </Badge>
           )}
-          <span className="ml-auto">
-            <Button
-              variant="outline"
-              className="text-foreground"
-            >
-              View Details
-            </Button>
-          </span>
+          <Button
+            variant="outline"
+            className="ml-auto text-foreground"
+          >
+            View Details
+          </Button>
         </div>
       </CardContent>
     </Card>
