@@ -13,13 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Copy } from "lucide-react";
 import { type Token } from "@shared/schema";
 import { ethers } from "ethers";
-import { useWallet, shortenAddress } from "@/lib/web3";
+import { shortenAddress } from "@/lib/web3";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  getAddressUrl, 
-  getTokenUrl, 
-  formatNumber as formatNumberWithSeparators
-} from "@/lib/utils";
 
 interface TokenDetailsModalProps {
   token: Token;
@@ -35,13 +30,12 @@ const TokenDetailsModal: React.FC<TokenDetailsModalProps> = ({
   onClose 
 }) => {
   const { toast } = useToast();
-  const { chainId } = useWallet();
 
-  // Format large numbers with commas, properly accounting for token decimals
+  // Format large numbers with commas, properly accounting for 18 decimals
   const formatNumber = (value: string) => {
     try {
-      // Format with the correct number of decimals for the token
-      const valueInEther = ethers.formatUnits(value || "0", token.decimals);
+      // Make sure to explicitly divide by 10^18 for token balances
+      const valueInEther = ethers.formatUnits(value || "0", 18);
       return new Intl.NumberFormat().format(Number(valueInEther));
     } catch (error) {
       console.warn("Error formatting number:", error);
@@ -51,6 +45,8 @@ const TokenDetailsModal: React.FC<TokenDetailsModalProps> = ({
 
   const formattedTotalSupply = formatNumber(token.totalSupply);
   const formattedBalance = formatNumber(balance);
+
+  const explorerBaseUrl = "https://alfajores.celoscan.io";
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -94,7 +90,7 @@ const TokenDetailsModal: React.FC<TokenDetailsModalProps> = ({
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8" 
-                onClick={() => window.open(getAddressUrl(chainId, token.contractAddress), '_blank')}
+                onClick={() => window.open(`${explorerBaseUrl}/address/${token.contractAddress}`, '_blank')}
               >
                 <ExternalLink className="h-4 w-4" />
               </Button>
@@ -140,7 +136,7 @@ const TokenDetailsModal: React.FC<TokenDetailsModalProps> = ({
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8" 
-                onClick={() => window.open(getAddressUrl(chainId, token.creatorAddress), '_blank')}
+                onClick={() => window.open(`${explorerBaseUrl}/address/${token.creatorAddress}`, '_blank')}
               >
                 <ExternalLink className="h-4 w-4" />
               </Button>
@@ -163,7 +159,7 @@ const TokenDetailsModal: React.FC<TokenDetailsModalProps> = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button onClick={() => window.open(getTokenUrl(chainId, token.contractAddress), '_blank')}>
+          <Button onClick={() => window.open(`${explorerBaseUrl}/token/${token.contractAddress}`, '_blank')}>
             View on Explorer
           </Button>
         </DialogFooter>
