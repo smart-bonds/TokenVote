@@ -62,8 +62,8 @@ export const GOVERNANCE_ABI = [
 
 // Mainnet deployed contract addresses
 // For Celo Mainnet deployment, update these addresses with your deployed contract addresses
-export const TOKEN_FACTORY_ADDRESS = "0x0000000000000000000000000000000000000000"; // Replace with your deployed TokenFactory contract address
-export const GOVERNANCE_ADDRESS = "0x0000000000000000000000000000000000000000"; // Replace with your deployed Governance contract address
+export const TOKEN_FACTORY_ADDRESS = "0x69F14a29F815AF56c1efee18c92f266a77459C98"; 
+export const GOVERNANCE_ADDRESS = "0x42b91cFF3FD5429C7bD8610b945C9aA8a2F9FBDD"; 
 
 // Function to create a new ERC20 token using the Token Factory
 export const createToken = async (
