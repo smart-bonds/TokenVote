@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { WalletProvider } from "./lib/web3.tsx";
 import Header from "./components/layout/header";
 import Footer from "./components/layout/footer";
+import NetworkCheck from "@/components/wallet/network-check";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Tokens from "@/pages/tokens";
@@ -34,6 +35,9 @@ function App() {
         <div className="min-h-screen flex flex-col bg-background text-foreground">
           <Header toggleTheme={toggleTheme} theme={theme} />
           <main className="flex-grow">
+            <div className="container mx-auto px-4 pt-4">
+              <NetworkCheck />
+            </div>
             <Switch>
               <Route path="/" component={Home} />
               <Route path="/tokens" component={Tokens} />

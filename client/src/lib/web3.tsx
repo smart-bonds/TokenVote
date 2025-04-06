@@ -30,6 +30,23 @@ interface WalletProviderProps {
   children: ReactNode;
 }
 
+// Celo network IDs
+const CELO_MAINNET_ID = 42220;
+const CELO_ALFAJORES_TESTNET_ID = 44787;
+
+// Network details for adding to MetaMask
+const CELO_MAINNET = {
+  chainId: `0x${CELO_MAINNET_ID.toString(16)}`,
+  chainName: "Celo Mainnet",
+  nativeCurrency: {
+    name: "CELO",
+    symbol: "CELO",
+    decimals: 18,
+  },
+  rpcUrls: ["https://forno.celo.org"],
+  blockExplorerUrls: ["https://explorer.celo.org"],
+};
+
 export const WalletProvider = ({ children }: WalletProviderProps) => {
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
@@ -39,6 +56,36 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
   const [isConnecting, setIsConnecting] = useState(false);
   
   const { toast } = useToast();
+  
+  // Function to switch network to Celo mainnet
+  const switchToCeloMainnet = async () => {
+    if (!window.ethereum) return false;
+    
+    try {
+      // Try to switch to the Celo network
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: CELO_MAINNET.chainId }],
+      });
+      return true;
+    } catch (error: any) {
+      // This error code means the chain has not been added to MetaMask
+      if (error.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [CELO_MAINNET],
+          });
+          return true;
+        } catch (addError) {
+          console.error("Error adding Celo network:", addError);
+          return false;
+        }
+      }
+      console.error("Error switching to Celo network:", error);
+      return false;
+    }
+  };
 
   const connectWallet = useCallback(async () => {
     try {
@@ -64,7 +111,31 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       
       // Get network
       const network = await browserProvider.getNetwork();
-      setChainId(Number(network.chainId));
+      const currentChainId = Number(network.chainId);
+      setChainId(currentChainId);
+      
+      // Check if connected to Celo mainnet and switch if needed
+      if (currentChainId !== CELO_MAINNET_ID) {
+        toast({
+          title: "Wrong network",
+          description: "Switching to Celo Mainnet...",
+        });
+        
+        const switched = await switchToCeloMainnet();
+        if (!switched) {
+          toast({
+            title: "Network switch failed",
+            description: "Please manually switch to Celo Mainnet in your wallet",
+            variant: "destructive",
+          });
+          setIsConnecting(false);
+          return;
+        }
+        
+        // Update chainId after switch
+        const updatedNetwork = await browserProvider.getNetwork();
+        setChainId(Number(updatedNetwork.chainId));
+      }
       
       // Get signer
       const ethSigner = await browserProvider.getSigner();
@@ -77,7 +148,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       
       toast({
         title: "Wallet connected",
-        description: `Connected to ${shortenAddress(address)}`,
+        description: `Connected to ${shortenAddress(address)} on Celo Mainnet`,
       });
     } catch (error) {
       console.error("Error connecting wallet:", error);
@@ -89,7 +160,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
     } finally {
       setIsConnecting(false);
     }
-  }, [toast]);
+  }, [toast, switchToCeloMainnet]);
 
   const disconnectWallet = useCallback(() => {
     setProvider(null);

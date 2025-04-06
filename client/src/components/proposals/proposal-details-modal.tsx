@@ -81,7 +81,7 @@ const ProposalDetailsModal: React.FC<ProposalDetailsModalProps> = ({
   const result = votesFor > votesAgainst ? "Passed" : "Rejected";
   const resultClass = votesFor > votesAgainst ? "text-green-600" : "text-red-600";
 
-  const explorerBaseUrl = "https://alfajores.celoscan.io";
+  const explorerBaseUrl = "https://explorer.celo.org";
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
